@@ -1,0 +1,46 @@
+# ============================================================
+# NL-6 Commission Schedule Extraction Pipeline Configuration
+# Edit this file before running: python3 pipeline.py
+# ============================================================
+
+base_path: "/Users/pulkit/Desktop/Forms"
+
+# Fiscal years to process — list one or more
+fiscal_years:
+  - FY2025
+  - FY2026
+
+quarters:
+  - Q1
+  - Q2
+  - Q3
+
+# Which year's data to include in the output
+year_selection: both
+
+# Full path to the master Excel output file
+master_sheet_path: "/Users/pulkit/Desktop/Forms/NL6_Master.xlsx"
+
+# Full path to the processed log file
+processed_log_path: "/Users/pulkit/Desktop/Forms/.NL6_processed_log.json"
+
+# How to handle Consolidated_*.pdf files at the Q{n}/ level
+consolidated_mode: dynamic
+
+# Minimum number of NL-6 keywords that must appear on a page
+nl6_keywords:
+  - "FORM NL-6"
+  - "NL-6"
+  - "COMMISSION SCHEDULE"
+  - "NET COMMISSION"
+  - "GROSS COMMISSION"
+  - "REINSURANCE ACCEPTED"
+  - "REINSURANCE CEDED"
+  - "DISTRIBUTION FEES"
+
+nl6_keyword_min_matches: 4
+
+# Per-company overrides for consolidated PDF page detection.
+# min_matches: relax (or tighten) the keyword threshold for one company
+# start/end:   hard-pin the page range (1-indexed, inclusive) — use as last resort
+nl6_page_overrides: {}
