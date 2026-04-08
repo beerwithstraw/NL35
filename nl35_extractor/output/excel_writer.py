@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
 _HEADER_FILL = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
 _CENTER_ALIGN = Alignment(horizontal="center", vertical="center")
+_CENTER_ALIGN_WRAP = Alignment(horizontal="center", vertical="center", wrap_text=True)
 _META_FILL = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
 
 # Columns that hold policy counts (integer format)
@@ -124,26 +125,39 @@ def _write_master_data(ws, extractions: List[NL35Extract], existing_rows: Option
 
 def _write_verification_sheet(ws, extract: NL35Extract):
     """Per-company verification grid: LOBs as rows, period-metrics as columns."""
-    ws.cell(row=1, column=1, value=f"VERIFICATION: {extract.company_name}").font = Font(bold=True, size=14)
-    ws.cell(row=2, column=1, value=f"Quarter: {extract.quarter} | Year: {extract.year} | Source: {extract.source_file}")
+    total_cols = 9  # 1 label + 8 data
 
+    # Row 1: company name title
+    cell = ws.cell(row=1, column=1, value=extract.company_name)
+    cell.font = Font(bold=True, size=13)
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+
+    # Row 2: subtitle
+    subtitle = f"NL-35  |  Quarter: {extract.quarter}  |  Year: {extract.year}  |  Source: {extract.source_file}"
+    cell = ws.cell(row=2, column=1, value=subtitle)
+    cell.font = Font(italic=True, size=10)
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+
+    # Row 4: header
     header_row = 4
-    # Column headers
-    ws.cell(row=header_row, column=1, value="Line of Business").font = Font(bold=True)
-    ws.cell(row=header_row, column=1).fill = _HEADER_FILL
-    ws.cell(row=header_row, column=1).font = _HEADER_FONT
+    cell = ws.cell(row=header_row, column=1, value="Line of Business")
+    cell.font = _HEADER_FONT
+    cell.fill = _HEADER_FILL
+    cell.alignment = _CENTER_ALIGN_WRAP
 
     col_headers = [
-        "CY Qtr Premium", "CY Qtr Policies",
-        "PY Qtr Premium", "PY Qtr Policies",
-        "CY YTD Premium", "CY YTD Policies",
-        "PY YTD Premium", "PY YTD Policies",
+        "CY Qtr\nPremium (₹L)", "CY Qtr\nPolicies",
+        "PY Qtr\nPremium (₹L)", "PY Qtr\nPolicies",
+        "CY YTD\nPremium (₹L)", "CY YTD\nPolicies",
+        "PY YTD\nPremium (₹L)", "PY YTD\nPolicies",
     ]
     for ci, hdr in enumerate(col_headers, 2):
         cell = ws.cell(row=header_row, column=ci, value=hdr)
         cell.font = _HEADER_FONT
         cell.fill = _HEADER_FILL
-        cell.alignment = _CENTER_ALIGN
+        cell.alignment = _CENTER_ALIGN_WRAP
+
+    ws.freeze_panes = "A5"
 
     # Data rows
     for ri, lob in enumerate(NL35_LOB_ORDER, header_row + 1):
@@ -157,6 +171,11 @@ def _write_verification_sheet(ws, extract: NL35Extract):
                     cell.number_format = INTEGER_FORMAT
                 else:
                     cell.number_format = NUMBER_FORMAT
+
+    # Column widths
+    ws.column_dimensions["A"].width = 36
+    for col_idx in range(2, total_cols + 1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 16
 
 
 def _write_meta_sheet(ws, extractions: List[NL35Extract], stats: Dict[str, Any]):
