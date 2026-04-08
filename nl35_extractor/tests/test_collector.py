@@ -1,36 +1,42 @@
 """
-test_collector.py — NL-6 table collector tests.
+test_collector.py — NL-35 page detection and collector smoke tests.
 """
 
 import pytest
-from extractor.collector import collect_tables
-import os
-
-_BAJAJ_PDF = "/Users/pulkit/Desktop/Forms/FY2026/Q3/NL6/NL_06_2025_26_Q3_BajajGeneral.pdf"
+from extractor.companies._base_nl35 import get_nl35_pages
 
 
-def test_collect_tables_bajaj():
-    if os.path.exists(_BAJAJ_PDF):
-        tables = collect_tables(_BAJAJ_PDF)
-        assert len(tables) > 0
-        assert "rows" in tables[0]
-        assert "page" in tables[0]
-    else:
-        pytest.skip("Bajaj NL6 PDF not found")
+class _MockPage:
+    def __init__(self, text):
+        self._text = text
+
+    def extract_text(self):
+        return self._text
 
 
-def test_collect_tables_invalid_file():
-    tables = collect_tables("non_existent.pdf")
-    assert tables == []
+class _MockPDF:
+    def __init__(self, pages):
+        self.pages = pages
 
 
-def test_collect_tables_structure():
-    if os.path.exists(_BAJAJ_PDF):
-        tables = collect_tables(_BAJAJ_PDF)
-        for table in tables:
-            for row in table["rows"]:
-                assert isinstance(row, list)
-                for cell in row:
-                    assert cell is None or isinstance(cell, str)
-    else:
-        pytest.skip("Bajaj NL6 PDF not found")
+def test_get_nl35_pages_small_pdf():
+    """For PDFs with <= 4 pages, return all pages."""
+    pdf = _MockPDF([_MockPage("some text")] * 3)
+    result = get_nl35_pages(pdf)
+    assert len(result) == 3
+
+
+def test_get_nl35_pages_large_pdf_filters():
+    """For large PDFs, return only pages with NL-35 keywords."""
+    pages = [_MockPage("unrelated content")] * 10
+    pages[3] = _MockPage("FORM NL-35 QUARTERLY BUSINESS RETURNS")
+    pdf = _MockPDF(pages)
+    result = get_nl35_pages(pdf)
+    assert len(result) == 1
+
+
+def test_get_nl35_pages_large_pdf_no_match_returns_all():
+    """If no NL-35 pages found in large PDF, return all pages as fallback."""
+    pdf = _MockPDF([_MockPage("unrelated content")] * 10)
+    result = get_nl35_pages(pdf)
+    assert len(result) == 10
