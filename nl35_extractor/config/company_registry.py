@@ -77,6 +77,18 @@ COMPANY_MAP = {
     "kshema general": "kshema_general",
     "indusind": "indusind_general",
     "indusind general": "indusind_general",
+    # Magma (plain token — "Magma General" and "Magma HDI" already covered above)
+    "magma": "magma_general",
+    # Galaxy Health Insurance
+    "galaxy health": "galaxy_health",
+    "galaxyhealth": "galaxy_health",
+    "galaxy": "galaxy_health",
+    # Generali Central (formerly Future Generali India Insurance)
+    "generali central": "generali_central",
+    "generalicentral": "generali_central",
+    "future generali": "generali_central",
+    "futuregenerali": "generali_central",
+    "generali": "generali_central",
 }
 
 # ---------------------------------------------------------------------------
@@ -116,6 +128,8 @@ COMPANY_DISPLAY_NAMES = {
     "magma_general": "Magma General Insurance Limited",
     "kshema_general": "Kshema General Insurance Limited",
     "indusind_general": "IndusInd General Insurance Company Limited",
+    "galaxy_health": "Galaxy Health Insurance Company Limited",
+    "generali_central": "Generali Central Insurance Company Limited",
 }
 
 # ---------------------------------------------------------------------------
@@ -127,6 +141,99 @@ DEDICATED_PARSER = {
 }
 
 # ---------------------------------------------------------------------------
-# Companies where certain LOBs are always absent (NL35-specific completeness)
+# Companies where certain LOBs are always absent (NL35-specific completeness).
+# Built from PDF smoke-test evidence — only confirmed absent LOBs are listed.
+# credit_insurance is reported only by Bajaj Allianz; all others ignore it.
 # ---------------------------------------------------------------------------
-COMPLETENESS_IGNORE: dict = {}
+
+# LOBs every non-Bajaj company ignores (credit_insurance not in their PDFs)
+_NO_CREDIT = ["credit_insurance"]
+
+# Full non-health LOB set that standalone health insurers never write
+_HEALTH_ONLY_IGNORE = [
+    "fire", "marine_cargo", "marine_hull",
+    "motor_od", "motor_tp",
+    "wc_el", "public_product_liability", "engineering",
+    "aviation", "crop_insurance",
+    "credit_insurance", "other_miscellaneous",
+]
+
+COMPLETENESS_IGNORE: dict = {
+
+    # ── Standalone health insurers ──────────────────────────────────────────
+    # Write only health / personal_accident / travel_insurance.
+    "aditya_birla_health": _HEALTH_ONLY_IGNORE,
+    "care_health":         _HEALTH_ONLY_IGNORE,
+    "manipal_cigna":       _HEALTH_ONLY_IGNORE,
+    "niva_bupa":           _HEALTH_ONLY_IGNORE,
+    "star_health":         _HEALTH_ONLY_IGNORE,
+    "narayana_health":     _HEALTH_ONLY_IGNORE,
+    "galaxy_health":       _HEALTH_ONLY_IGNORE + ["travel_insurance"],
+    # Kshema: general insurer but fire/marine/motor absent this quarter;
+    # has crop & health but not travel
+    "kshema_general":      [
+        "fire", "marine_cargo", "marine_hull",
+        "motor_od", "motor_tp",
+        "wc_el", "public_product_liability", "engineering",
+        "aviation", "travel_insurance",
+        "credit_insurance", "other_miscellaneous",
+    ],
+
+    # ── General insurers — confirmed absent LOBs ────────────────────────────
+    "acko":             ["aviation", "crop_insurance", "engineering",
+                         "marine_cargo", "marine_hull",
+                         "other_miscellaneous", "wc_el",
+                         "credit_insurance"],
+    "chola_ms":         ["aviation", "travel_insurance", "other_miscellaneous", "credit_insurance"],
+    "go_digit":         ["crop_insurance", "credit_insurance"],
+    "hdfc_ergo":        ["other_miscellaneous", "credit_insurance"],
+    "icici_lombard":    ["other_miscellaneous", "credit_insurance"],
+    "liberty_general":  ["aviation", "crop_insurance", "marine_hull",
+                         "other_miscellaneous", "credit_insurance"],
+    "raheja_qbe":       ["aviation", "crop_insurance", "marine_hull",
+                         "marine_cargo", "public_product_liability",
+                         "other_miscellaneous", "travel_insurance",
+                         "credit_insurance"],
+    "royal_sundaram":   ["aviation", "crop_insurance",
+                         "other_miscellaneous", "credit_insurance"],
+    "sbi_general":      _NO_CREDIT,
+    "shriram_general":  _NO_CREDIT,
+    "new_india":        _NO_CREDIT,
+    "oriental_insurance": _NO_CREDIT,
+    "universal_sompo":  ["aviation", "credit_insurance"],
+    "zuno":             ["aviation", "crop_insurance", "marine_hull",
+                         "public_product_liability", "credit_insurance"],
+    "zurich_kotak":     ["aviation", "crop_insurance", "marine_hull",
+                         "other_miscellaneous", "credit_insurance"],
+
+    # ── Remaining companies without credit_insurance ────────────────────────
+    # AIC only writes crop_insurance and other_miscellaneous
+    "aic":              [
+        "fire", "marine_cargo", "marine_hull",
+        "motor_od", "motor_tp",
+        "health", "personal_accident", "travel_insurance", "total_health",
+        "wc_el", "public_product_liability", "engineering",
+        "aviation", "credit_insurance",
+    ],
+    # ECGC only writes credit guarantee business (captured under other_miscellaneous).
+    # All standard GI LOBs are always NA in their PDFs.
+    "ecgc":             [
+        "fire", "marine_cargo", "marine_hull",
+        "motor_od", "motor_tp",
+        "health", "personal_accident", "travel_insurance", "total_health",
+        "wc_el", "public_product_liability", "engineering",
+        "aviation", "crop_insurance", "credit_insurance",
+    ],
+    "generali_central": _NO_CREDIT,
+    "iffco_tokio":      _NO_CREDIT,
+    "indusind_general": _NO_CREDIT,
+    "magma_general":    ["marine_hull", "travel_insurance", "aviation",
+                         "crop_insurance", "other_miscellaneous", "credit_insurance"],
+    "navi_general":     ["marine_cargo", "marine_hull", "travel_insurance",
+                         "wc_el", "public_product_liability", "engineering",
+                         "aviation", "crop_insurance", "other_miscellaneous",
+                         "credit_insurance"],
+    "national_insurance": _NO_CREDIT,
+    "tata_aig":         _NO_CREDIT,
+    "united_india":     _NO_CREDIT,
+}

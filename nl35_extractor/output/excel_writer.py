@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from config.settings import (
     MASTER_COLUMNS,
     PERIOD_METRIC_KEYS,
+    PERIOD_ROW_MAP,
     EXTRACTOR_VERSION,
     NUMBER_FORMAT,
     INTEGER_FORMAT,
@@ -37,10 +38,8 @@ _CENTER_ALIGN = Alignment(horizontal="center", vertical="center")
 _CENTER_ALIGN_WRAP = Alignment(horizontal="center", vertical="center", wrap_text=True)
 _META_FILL = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
 
-# Columns that hold policy counts (integer format)
-_POLICY_COLUMNS = {"CY_Qtr_Policies", "PY_Qtr_Policies", "CY_YTD_Policies", "PY_YTD_Policies"}
-# Columns that hold premium values (2-decimal format)
-_PREMIUM_COLUMNS = {"CY_Qtr_Premium", "PY_Qtr_Premium", "CY_YTD_Premium", "PY_YTD_Premium"}
+_POLICY_COL = "No_of_Policies"
+_PREMIUM_COL = "Premium"
 
 
 def _year_code_to_fy_end(year_code: str) -> str:
@@ -71,13 +70,13 @@ def _write_master_data(ws, extractions: List[NL35Extract], existing_rows: Option
                     break
                 cell = ws.cell(row=current_row, column=col_idx, value=val)
                 col_name = MASTER_COLUMNS[col_idx - 1]
-                if col_name in _POLICY_COLUMNS:
+                if col_name == _POLICY_COL:
                     cell.number_format = INTEGER_FORMAT
-                elif col_name in _PREMIUM_COLUMNS:
+                elif col_name == _PREMIUM_COL:
                     cell.number_format = NUMBER_FORMAT
             current_row += 1
 
-    # New extractions
+    # New extractions — each LOB × 4 period combinations = 4 rows
     for extract in extractions:
         meta = get_metadata(extract.company_key)
         fy_end = _year_code_to_fy_end(extract.year)
@@ -87,40 +86,33 @@ def _write_master_data(ws, extractions: List[NL35Extract], existing_rows: Option
             if lob_vals is None:
                 continue
 
-            row_meta = {
-                "LOB_PARTICULARS": get_lob_particulars(lob),
-                "Grouped_LOB": get_grouped_lob(lob),
-                "Company_Name": meta["company_name"],
-                "Company": meta["sorted_company"],
-                "NL": extract.form_type,
-                "Quarter": extract.quarter,
-                "Year": fy_end,
-                "Year_Info": "Current Year",
-                "Quarter_Info": f"For Quarter ending {extract.quarter}",
-                "Sector": meta["sector"],
-                "Industry_Competitors": meta["competitors"],
-                "GI_Companies": "GI Company",
-                "Source_File": extract.source_file,
-            }
+            for year_info, quarter_info, prem_key, pol_key in PERIOD_ROW_MAP:
+                row_data = {
+                    "LOB_PARTICULARS":      get_lob_particulars(lob),
+                    "Grouped_LOB":          get_grouped_lob(lob),
+                    "Company_Name":         meta["company_name"],
+                    "Company":              meta["sorted_company"],
+                    "NL":                   extract.form_type,
+                    "Quarter":              extract.quarter,
+                    "Year":                 fy_end,
+                    "Year_Info":            year_info,
+                    "Quarter_Info":         quarter_info,
+                    "Sector":               meta["sector"],
+                    "Industry_Competitors": meta["competitors"],
+                    "GI_Companies":         "GI Company",
+                    "No_of_Policies":       lob_vals.get(pol_key),
+                    "Premium":              lob_vals.get(prem_key),
+                    "Source_File":          extract.source_file,
+                }
 
-            row_values = []
-            for col_name in MASTER_COLUMNS:
-                if col_name in row_meta:
-                    row_values.append(row_meta[col_name])
-                else:
-                    # Map PascalCase column name to internal snake_case key
-                    key = col_name.lower()
-                    row_values.append(lob_vals.get(key))
+                for col_idx, col_name in enumerate(MASTER_COLUMNS, 1):
+                    cell = ws.cell(row=current_row, column=col_idx, value=row_data[col_name])
+                    if col_name == _POLICY_COL:
+                        cell.number_format = INTEGER_FORMAT
+                    elif col_name == _PREMIUM_COL:
+                        cell.number_format = NUMBER_FORMAT
 
-            for col_idx, val in enumerate(row_values, 1):
-                cell = ws.cell(row=current_row, column=col_idx, value=val)
-                col_name = MASTER_COLUMNS[col_idx - 1]
-                if col_name in _POLICY_COLUMNS:
-                    cell.number_format = INTEGER_FORMAT
-                elif col_name in _PREMIUM_COLUMNS:
-                    cell.number_format = NUMBER_FORMAT
-
-            current_row += 1
+                current_row += 1
 
 
 def _write_verification_sheet(ws, extract: NL35Extract):

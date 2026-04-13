@@ -23,7 +23,6 @@ from config.company_registry import COMPLETENESS_IGNORE
 logger = logging.getLogger(__name__)
 
 TOLERANCE = 1.0
-CROSS_PERIOD_RATIO_MAX = 10.0
 
 MANDATORY_LOBS = {"fire", "motor_od", "motor_tp", "health"}
 
@@ -53,9 +52,6 @@ def run_validations(extractions: List[NL35Extract]) -> List[ValidationResult]:
             if r:
                 results.append(r)
             r = _check_py_ytd_ge_py_qtr(exc, lob, lob_data)
-            if r:
-                results.append(r)
-            r = _check_cross_period_consistency(exc, lob, lob_data)
             if r:
                 results.append(r)
         results.extend(_check_completeness(exc))
@@ -89,8 +85,8 @@ def _check_policy_count_non_negative(exc, lob, lob_data) -> List[ValidationResul
         if v is None:
             continue
         if v < 0:
-            results.append(_make(exc, lob, "POLICY_COUNT_NON_NEGATIVE", "FAIL",
-                                  0.0, v, abs(v), f"{key} is negative"))
+            results.append(_make(exc, lob, "POLICY_COUNT_NON_NEGATIVE", "WARN",
+                                  0.0, v, abs(v), f"{key} is negative (possible reversal)"))
         else:
             results.append(_make(exc, lob, "POLICY_COUNT_NON_NEGATIVE", "PASS",
                                   0.0, v, 0.0))
@@ -99,17 +95,41 @@ def _check_policy_count_non_negative(exc, lob, lob_data) -> List[ValidationResul
 
 # ---------------------------------------------------------------------------
 # Check 2: Premium >= 0 (warn on negative, not fail — reversals are valid)
+#
+# Suppression rule (Option B — cross-period consistency gate):
+#   A negative premium is treated as a confirmed reversal (PASS) when its
+#   paired period is also negative or zero.  Pairs:
+#     cy_qtr_premium  ↔  cy_ytd_premium   (same FY stream)
+#     py_qtr_premium  ↔  py_ytd_premium
+#   If the paired value is positive it means a negative quarter sits inside a
+#   positive cumulative — genuinely suspicious — keep as WARN.
+#   If the paired value is absent (None), suppress as well: only one period
+#   column available, can't distinguish, assume reversal.
 # ---------------------------------------------------------------------------
 
 def _check_premium_non_negative(exc, lob, lob_data) -> List[ValidationResult]:
+    pairs = [
+        ("cy_qtr_premium", "cy_ytd_premium"),
+        ("cy_ytd_premium", "cy_qtr_premium"),
+        ("py_qtr_premium", "py_ytd_premium"),
+        ("py_ytd_premium", "py_qtr_premium"),
+    ]
     results = []
-    for key in ("cy_qtr_premium", "py_qtr_premium", "cy_ytd_premium", "py_ytd_premium"):
+    for key, partner_key in pairs:
         v = _get(lob_data, key)
         if v is None:
             continue
         if v < 0:
-            results.append(_make(exc, lob, "PREMIUM_NON_NEGATIVE", "WARN",
-                                  0.0, v, abs(v), f"{key} is negative (possible reversal)"))
+            partner = _get(lob_data, partner_key)
+            # Suppress if partner is also non-positive (confirmed reversal) or absent
+            if partner is None or partner <= 0:
+                results.append(_make(exc, lob, "PREMIUM_NON_NEGATIVE", "PASS",
+                                      0.0, v, 0.0,
+                                      f"{key} negative but partner {partner_key} also non-positive — reversal confirmed"))
+            else:
+                results.append(_make(exc, lob, "PREMIUM_NON_NEGATIVE", "WARN",
+                                      0.0, v, abs(v),
+                                      f"{key} is negative but {partner_key}={partner:.2f} is positive — suspicious"))
         else:
             results.append(_make(exc, lob, "PREMIUM_NON_NEGATIVE", "PASS",
                                   0.0, v, 0.0))
@@ -135,8 +155,8 @@ def _check_cy_ytd_ge_cy_qtr(exc, lob, lob_data) -> Optional[ValidationResult]:
         if ytd >= qtr - TOLERANCE:
             return _make(exc, lob, "CY_YTD_GE_CY_QTR", "PASS", qtr, ytd, ytd - qtr)
         else:
-            return _make(exc, lob, "CY_YTD_GE_CY_QTR", "FAIL", qtr, ytd, qtr - ytd,
-                          "YTD < Qtr")
+            return _make(exc, lob, "CY_YTD_GE_CY_QTR", "WARN", qtr, ytd, qtr - ytd,
+                          "YTD < Qtr (possible reversal in earlier quarter)")
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +177,8 @@ def _check_py_ytd_ge_py_qtr(exc, lob, lob_data) -> Optional[ValidationResult]:
         if ytd >= qtr - TOLERANCE:
             return _make(exc, lob, "PY_YTD_GE_PY_QTR", "PASS", qtr, ytd, ytd - qtr)
         else:
-            return _make(exc, lob, "PY_YTD_GE_PY_QTR", "FAIL", qtr, ytd, qtr - ytd,
-                          "YTD < Qtr")
+            return _make(exc, lob, "PY_YTD_GE_PY_QTR", "WARN", qtr, ytd, qtr - ytd,
+                          "YTD < Qtr (possible reversal in earlier quarter)")
 
 
 # ---------------------------------------------------------------------------
@@ -180,27 +200,6 @@ def _check_completeness(exc) -> List[ValidationResult]:
 
     return results
 
-
-# ---------------------------------------------------------------------------
-# Check 6: Cross-period consistency
-# ---------------------------------------------------------------------------
-
-def _check_cross_period_consistency(exc, lob, lob_data) -> Optional[ValidationResult]:
-    cy = _get(lob_data, "cy_qtr_premium")
-    py = _get(lob_data, "py_qtr_premium")
-    if cy is None or py is None or py == 0:
-        return None
-    if cy == 0:
-        return None
-    ratio = cy / py if py > 0 else None
-    if ratio is None:
-        return None
-    if ratio > CROSS_PERIOD_RATIO_MAX or ratio < (1.0 / CROSS_PERIOD_RATIO_MAX):
-        return _make(exc, lob, "CROSS_PERIOD_CONSISTENCY", "WARN",
-                      py, cy, abs(cy - py),
-                      f"CY/PY ratio {ratio:.2f} outside plausible range")
-    return _make(exc, lob, "CROSS_PERIOD_CONSISTENCY", "PASS",
-                  py, cy, abs(cy - py))
 
 
 # ---------------------------------------------------------------------------

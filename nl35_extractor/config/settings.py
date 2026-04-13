@@ -32,7 +32,8 @@ QUARTER_TO_FY = {
 }
 
 # --- Master Sheet Column Order (fixed — do not reorder) ---
-# NL35: one row per company per LOB. Each row has 8 data columns.
+# NL35: one row per company per LOB per (Year_Info × Quarter_Info) combination.
+# Each original LOB expands into 4 rows: CY/PY × For Quarter/Upto Quarter.
 MASTER_COLUMNS = [
     "LOB_PARTICULARS",           # A
     "Grouped_LOB",               # B
@@ -41,23 +42,17 @@ MASTER_COLUMNS = [
     "NL",                        # E
     "Quarter",                   # F
     "Year",                      # G
-    "Year_Info",                 # H
-    "Quarter_Info",              # I
+    "Year_Info",                 # H  — "Current Year" or "Previous Year"
+    "Quarter_Info",              # I  — "For the Quarter" or "Upto the Quarter"
     "Sector",                    # J
     "Industry_Competitors",      # K
     "GI_Companies",              # L
-    "CY_Qtr_Premium",            # M
-    "CY_Qtr_Policies",           # N
-    "PY_Qtr_Premium",            # O
-    "PY_Qtr_Policies",           # P
-    "CY_YTD_Premium",            # Q
-    "CY_YTD_Policies",           # R
-    "PY_YTD_Premium",            # S
-    "PY_YTD_Policies",           # T
-    "Source_File",               # U
+    "No_of_Policies",            # M
+    "Premium",                   # N
+    "Source_File",               # O
 ]
 
-# Canonical period-metric keys (internal, match MASTER_COLUMNS M–T lowercased)
+# Canonical period-metric keys (internal snake_case)
 PERIOD_METRIC_KEYS = [
     "cy_qtr_premium",
     "cy_qtr_policies",
@@ -67,6 +62,14 @@ PERIOD_METRIC_KEYS = [
     "cy_ytd_policies",
     "py_ytd_premium",
     "py_ytd_policies",
+]
+
+# Mapping from (Year_Info, Quarter_Info) → (premium_key, policies_key)
+PERIOD_ROW_MAP = [
+    ("Current Year",  "For the Quarter",    "cy_qtr_premium",  "cy_qtr_policies"),
+    ("Current Year",  "Upto the Quarter",   "cy_ytd_premium",  "cy_ytd_policies"),
+    ("Previous Year", "For the Quarter",    "py_qtr_premium",  "py_qtr_policies"),
+    ("Previous Year", "Upto the Quarter",   "py_ytd_premium",  "py_ytd_policies"),
 ]
 
 # --- Excel Formatting ---

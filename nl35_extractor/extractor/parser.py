@@ -2,14 +2,13 @@
 NL-35 parser entry point.
 
 Routes to the dedicated parser for each company (DEDICATED_PARSER in
-company_registry.py). NL-35 has no generic fallback parser — all companies
-must have a dedicated parser registered.
+company_registry.py). Falls back to the generic header-driven parser when
+no dedicated parser is registered.
 """
 
 import logging
-from pathlib import Path
 
-from config.company_registry import DEDICATED_PARSER, COMPANY_DISPLAY_NAMES
+from config.company_registry import DEDICATED_PARSER
 from extractor.models import NL35Extract
 
 logger = logging.getLogger(__name__)
@@ -18,11 +17,10 @@ logger = logging.getLogger(__name__)
 def parse_pdf(pdf_path: str, company_key: str, quarter: str = "", year: str = "") -> NL35Extract:
     """
     Parse an NL-35 PDF and return an NL35Extract.
-    Routes to the dedicated parser registered for the company.
+    Routes to the dedicated parser registered for the company, or falls back
+    to the generic header-driven parser.
     """
     logger.info(f"Parsing PDF: {pdf_path} for company: {company_key}")
-
-    company_name = COMPANY_DISPLAY_NAMES.get(company_key, str(company_key).title())
 
     dedicated_func_name = DEDICATED_PARSER.get(company_key)
     if dedicated_func_name:
@@ -34,17 +32,7 @@ def parse_pdf(pdf_path: str, company_key: str, quarter: str = "", year: str = ""
         else:
             logger.error(f"Dedicated parser '{dedicated_func_name}' not in PARSER_REGISTRY")
 
-    # No parser available — return empty extract with error
-    extract = NL35Extract(
-        source_file=Path(pdf_path).name,
-        company_key=company_key,
-        company_name=company_name,
-        form_type="NL35",
-        quarter=quarter,
-        year=year,
-    )
-    extract.extraction_errors.append(
-        f"No dedicated NL-35 parser registered for {company_key}"
-    )
-    logger.error(f"No dedicated NL-35 parser for {company_key}")
-    return extract
+    # No dedicated parser — fall back to the generic header-driven parser.
+    logger.info(f"No dedicated parser for {company_key} — using generic header-driven fallback")
+    from extractor.companies._base_nl35 import parse_header_driven_nl35
+    return parse_header_driven_nl35(pdf_path, company_key, quarter=quarter, year=year)
