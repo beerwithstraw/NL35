@@ -22,11 +22,8 @@ nl35_keywords:
   - "NO. OF POLICIES"
   - "PREMIUM"
 
-nl35_keyword_min_matches: 4
-
-nl35_page_overrides: {
-    "IFFCO_TOKIO":       {"start": 74, "end": 74},
-    "INDUSIND_RELIANCE": {"start": 40, "end": 40},
-    "MAGMA":             {"start": 48, "end": 48},
-    "NEWINDIA":          {"start": 37, "end": 37},
-}
+nl35_keyword_min_matches: 4  # page 1 (form index) scores 3; real pages score 4-5
+nl35_page_overrides:
+  NEWINDIA:
+    start: 36
+    end: 37
