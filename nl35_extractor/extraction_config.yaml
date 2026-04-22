@@ -23,7 +23,6 @@ nl35_keywords:
   - "PREMIUM"
 
 nl35_keyword_min_matches: 4  # page 1 (form index) scores 3; real pages score 4-5
-nl35_page_overrides:
-  NEWINDIA:
+nl35_page_overrides:  NEWINDIA:
     start: 36
-    end: 37
+    end: 36
