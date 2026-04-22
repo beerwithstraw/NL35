@@ -6,6 +6,8 @@ Company Registry for NL-35 Quarterly Business Returns extractor.
 # Company detection: maps normalised filename/text tokens → company key
 # ---------------------------------------------------------------------------
 COMPANY_MAP = {
+    "care": "care_health",
+    "star": "star_health",
     "bajaj allianz": "bajaj_allianz",
     "bajaj": "bajaj_allianz",
     "bajajgeneral": "bajaj_allianz",
