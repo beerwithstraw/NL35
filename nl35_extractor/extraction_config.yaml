@@ -24,6 +24,6 @@ nl35_keywords:
 
 nl35_keyword_min_matches: 4  # page 1 (form index) scores 3; real pages score 4-5
 nl35_page_overrides:
-  NEWINDIA:
+  new_india:
     start: 36
     end: 36
