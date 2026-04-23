@@ -1,5 +1,5 @@
 """
-test_normaliser.py — clean_number tests (unchanged from NL-6, shared logic).
+test_normaliser.py — clean_number tests (unchanged from NL-35, shared logic).
 """
 
 from extractor.normaliser import clean_number, normalise_text
